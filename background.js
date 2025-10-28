@@ -96,20 +96,15 @@ async function handleClearTabs() {
   }
 }
 
-async function calculateSha(data) {
-  const encoder = new TextEncoder();
-  const blob = encoder.encode('blob ' + data.length + '\0' + data);
+async function calculateSha2(data) {
+  const blob = new TextEncoder().encode("blob " + data.length + "\0" + data);
   const hashbuf = await window.crypto.subtle.digest("SHA-1", blob);
-  const hasharr = Array.from(new Uint8Array(hashbuf));
-  const hashhex = hasharr
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-  return hashhex;
+  return Array.from(new Uint8Array(hashbuf), b => b.toString(16).padStart(2, "0")).join("");
 }
 
 async function saveRemoteData(settings, data, maxRetries = 5, delayMs = 300) {
-  const precontent = JSON.stringify(data, null, 2);
-  const content = btoa(precontent);
+  const str = JSON.stringify(data, null, 2);
+  const content = btoa(str);
 
   async function fetchSha() {
     try {
@@ -123,12 +118,12 @@ async function saveRemoteData(settings, data, maxRetries = 5, delayMs = 300) {
             Accept: "application/vnd.github.v3+json",
             "Cache-Control": "no-cache",
           },
-          method: 'HEAD'
+          method: "HEAD"
         }
       );
 
       if (!response.ok) return null;
-      const sha = response.headers.get('etag');
+      const sha = response.headers.get("etag");
       if (!sha) return null;
       return sha.slice(3, -1)
     } catch {
@@ -137,7 +132,7 @@ async function saveRemoteData(settings, data, maxRetries = 5, delayMs = 300) {
     }
   }
 
-  let newSha = await calculateSha(precontent);
+  let newSha = await calculateSha(str);
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     let sha = await fetchSha();
