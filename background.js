@@ -97,8 +97,15 @@ async function handleClearTabs() {
 }
 
 async function saveRemoteData(settings, data, maxRetries = 5, delayMs = 300) {
-  const content = btoa(JSON.stringify(data, null, 2));
+  const str = JSON.stringify(data, null, 2);
+  const content = btoa(str);
 
+  async function calculateSha(data) {
+    const blob = new TextEncoder().encode("blob " + data.length + "\0" + data);
+    const hashbuf = await window.crypto.subtle.digest("SHA-1", blob);
+    return Array.from(new Uint8Array(hashbuf), b => b.toString(16).padStart(2, "0")).join("");
+  }
+  
   async function fetchSha() {
     try {
       const response = await fetch(
@@ -111,19 +118,27 @@ async function saveRemoteData(settings, data, maxRetries = 5, delayMs = 300) {
             Accept: "application/vnd.github.v3+json",
             "Cache-Control": "no-cache",
           },
+          method: "HEAD"
         }
       );
 
       if (!response.ok) return null;
-      const fileData = await response.json();
-      return fileData.sha;
+      const sha = response.headers.get("etag");
+      if (!sha) return null;
+      return sha.slice(3, -1)
     } catch {
+      console.log("Failed to fetch SHA");
       return null;
     }
   }
 
+  let newSha = await calculateSha(str);
+
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     let sha = await fetchSha();
+    if (sha === newSha) {
+      return;
+    }
     const payload = {
       message: "Update GitSync data",
       content,
