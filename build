@@ -1,0 +1,8 @@
+#!/bin/bash
+
+version=$(jq .version manifest.json | tr -d '"')
+
+rm -rf *.zip *.xpi
+zip -r "gitsync-$version-unsigned.xpi" . -x build\* README.md\* .git\* # > /dev/null 2>&1
+python3 ~/git/source/scripts/sign-xpi.py "gitsync-$version-unsigned.xpi" -o "gitsync-$version.xpi" 
+rm "gitsync-$version-unsigned.xpi"
